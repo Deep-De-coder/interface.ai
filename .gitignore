@@ -1,0 +1,33 @@
+# Assignment materials are local-only; supplied website data must not be redistributed.
+/hackathon-knowledge-kit-participant/
+/hackathon-knowledge-kit-participant.zip
+/Knowledge-Hackathon-Assignment.pdf
+**/snapshots/
+**/snapshots_zip/
+
+# Secrets and local credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python environments and generated files
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+results/
+tmp/
+local_eval/
+*.sqlite
+*.sqlite3
+*.db
+*.db-*
+*.sqlite-*
+*.sqlite3-*
+.coverage
+dist/
+build/
+*.egg-info/
