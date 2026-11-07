@@ -161,7 +161,8 @@ def read_scoped(store, index, request, view, target):
         else:
             body = ("Hours vary by branch. A typical schedule is:\n" + order[0]
                     + "\nTell me which branch, or ask for all branches, for exact times.")
-        return _result(store, groups[order[0]], body, "Branch schedule with branch clarification.")
+        return _result(store, _broaden_hours(store, index, groups[order[0]], target), body,
+                       "Branch schedule with branch clarification.")
     listing = "\n\n".join(order)
     if uniformity:
         body = ("Branch hours are not all the same. The schedules on file are:\n\n"
@@ -169,7 +170,32 @@ def read_scoped(store, index, request, view, target):
     else:
         body = ("Hours vary by branch. Typical schedules on file:\n\n"
                 + listing + "\n\nTell me which branch, or ask for all branches, for exact times.")
-    return _result(store, docs, body, "Branch schedules with branch clarification.")
+    return _result(store, _broaden_hours(store, index, docs, target), body,
+                   "Branch schedules with branch clarification.")
+
+
+def _broaden_hours(store, index, docs, target):
+    """Also cite other applicable pages (e.g. the homepage or Contact page) that
+    publish a matching schedule, so the reference set is not tied to one branch page.
+    The answer text is unchanged; only the citation set widens."""
+    _time = re.compile(r"\d{1,2}(?::\d{2})?\s*[ap]\.?\s?m\.?", re.I)
+    def times(body):
+        return {re.sub(r"\s+", "", m.group(0).lower()) for m in _time.finditer(body)}
+    have = {d.occurrence.url for d in docs}
+    want = set().union(*(times(store.quote(d.occurrence, d.block.span)) for d in docs)) if docs else set()
+    cited = list(docs)
+    for d in index.docs:
+        if d.occurrence.url in have or d.block.kind not in ("passage", "list_item"):
+            continue
+        if d.validity.status(target) != "applicable":
+            continue
+        body = store.quote(d.occurrence, d.block.span)
+        if SCHEDULE_RE.search(body) and (want & times(body)):
+            cited.append(d)
+            have.add(d.occurrence.url)
+            if len(cited) >= len(docs) + 4:
+                break
+    return cited
 
 
 _MONTHS = ("January|February|March|April|May|June|July|August|September|October|November|December")
@@ -212,7 +238,28 @@ def direct_answer(store, index, request, view, event_date=None):
         focus = "recognition"
     elif re.search(r"full[- ]service|where can .*(?:go|bank)|instead|alternative", q):
         focus = "referral"
+    elif re.search(r"\b(do you (?:have|offer)|options|flexib)\b", q) and not re.search(r"\b(rate|apr|apy|interest)\b|%", q):
+        focus = "product"
     else:
+        return None
+
+    if focus == "product":
+        # "Do you have options for <X>?" (not a rate query) → a passage naming a
+        # matching product for the distinctive subject (e.g. student -> student loan).
+        generic = {"loan", "loans", "option", "options", "flexibility", "flexible", "new",
+                   "going", "offer", "have", "any", "something"}
+        distinctive = [e for e in ents if e not in generic]
+        if not distinctive:
+            return None
+        for doc in index.docs:
+            if doc.block.kind not in ("passage", "list_item") or doc.validity.status(target) != "applicable":
+                continue
+            body = store.quote(doc.occurrence, doc.block.span)
+            if not (4 <= len(body.split()) <= 200):
+                continue
+            low = body.lower()
+            if any(d in low for d in distinctive) and re.search(r"\b(loan|loans|account|accounts|card|product)\b", low):
+                return _result(store, [doc], body, "Published product reference matching the request.")
         return None
 
     if focus == "referral":
