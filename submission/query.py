@@ -17,6 +17,15 @@ def tokens(text, expand=False):
     return [SYNONYMS.get(w, w) for w in words] if expand else words
 
 
+def procedure_supported(request, body, brand=()):
+    """Require the requested action and its object in the cited passage."""
+    actions = set(request.terms) & {"open", "join", "update", "change", "add", "apply", "transfer"}
+    body_terms = set(tokens(body, True))
+    noise = {"how", "where", "please", "would", "like", "should"}
+    objects = set(request.terms) - actions - set(brand) - noise
+    return bool(actions & body_terms) and objects <= body_terms and not body.lstrip().startswith(">")
+
+
 @dataclass(frozen=True)
 class Request:
     question: str

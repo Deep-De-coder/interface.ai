@@ -21,6 +21,18 @@ def content(rate="2.10%", extra=""):
 
 
 class AnswerTests(unittest.TestCase):
+    def test_procedure_requires_requested_object(self):
+        wrong = page("# Update contact information\n\nIf you notice suspicious activity, contact support immediately and update your passwords.", "contact", "Contact information")
+        right = page("# Update contact information\n\nTo update your contact information, open settings and select your profile details.", "contact", "Contact information")
+        for mode in ("basic", "research"):
+            system = build(mode)
+            system.ingest(snapshot("old", "2026-01-01", [wrong]))
+            self.assertFalse(system.answer("How can I update my contact information?").confident)
+            system.ingest(snapshot("new", "2026-03-01", [right]))
+            answer = system.answer("How can I update my contact information?")
+            self.assertTrue(answer.confident, answer.text)
+            self.assertIn("select your profile", answer.text)
+
     def systems(self, first=None, second=None):
         for mode in ("basic", "research"):
             system = build(mode)

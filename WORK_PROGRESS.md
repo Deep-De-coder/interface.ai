@@ -34,7 +34,7 @@ stored credentials, despite `gh auth status` failing and connector push=false.
 - Final source eligibility, exact quote and numerical provenance validation.
 - Source-only ZIP packaging, isolated import verification, CI configuration.
 
-## Verified checkpoint
+## Previous verified checkpoint
 
 29 tests pass on Python 3.11.9 and installed Python 3.12.
 Final paired run before this progress file: basic QA **0.5561**, research
@@ -106,3 +106,23 @@ Research files and earlier plan/results are historical artifacts; preserve them.
   do not establish semantic relevance; inspect confident errors carefully.
 - Broad rate/list outputs may omit conditions or relevant alternative products.
 - Temporal metadata ambiguity must not be hidden by ranking preferences.
+
+## Latest checkpoint: procedural evidence guard
+
+Progress documentation pushed as 86bfe90. Full prior implementation was already
+published as bab82b8; do not recreate or backdate step commits. User requests
+short professional commits and incremental pushes as real milestones complete.
+
+Added shared action/object matching for procedural reader and extractive fallback,
+plus a negative/positive snapshot mutation test. Reject blockquote testimonials.
+30 tests pass on Python 3.11.9 and 3.12; isolated release verification passes.
+Latest paired public scores remain basic .5561 / research .5227, confidence
+coverage falls to 24/40 and 25/40. Source integrity and eligibility failures: zero.
+Basic p95 .439s / ingestion 35.26s; research p95 .507s / ingestion 25.23s.
+Code hash: 3d77b4bf0c03ef94d6b0855fab865793f2208ef11f244d95cf1329112f6ffe02.
+Reports at the same ignored public/research-first paths now describe this change.
+
+Next: repair missing personal card rows and entity audience ambiguity; inspect
+branch-specific hours being used for general hours. Procedural lexical matching
+is conservative and may reject valid paraphrases; do not claim semantic proof.
+Remaining scope/list/prose/conflict gaps above still apply.

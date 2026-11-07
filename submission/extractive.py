@@ -2,11 +2,11 @@
 import re
 from urllib.parse import urlsplit
 try:
-    from .query import tokens
+    from .query import tokens, procedure_supported
     from .models import Answer
     from .decisions import Decision, citation
 except ImportError:
-    from query import tokens
+    from query import tokens, procedure_supported
     from models import Answer
     from decisions import Decision, citation
 
@@ -25,6 +25,8 @@ def extract(store, index, request, view, mode):
         if len(raw.split()) < 5 or len(raw) > 2500 or raw.lstrip().startswith("!["):
             continue
         brand = set(urlsplit(doc.occurrence.url).hostname.split("."))
+        if request.intent == "procedure" and not procedure_supported(request, raw, brand):
+            continue
         focus = set(request.terms) - NOISE - brand
         body = set(tokens(raw, True))
         if not focus or not focus <= body:

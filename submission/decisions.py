@@ -5,11 +5,11 @@ import re
 
 try:
     from .models import Answer, Source
-    from .query import tokens
+    from .query import tokens, procedure_supported
     from .temporal import DATE
 except ImportError:
     from models import Answer, Source
-    from query import tokens
+    from query import tokens, procedure_supported
     from temporal import DATE
 
 GENERIC = set("apy apr rate fee interest dividend balance tier minimum amount saving savings account certificate loan term month year model auto historical access method option transfer wire current latest difference change changed between compare did effective percent percentage yield annual special pay pays earn earning offer offered required requirement deposit online banking withdrawal how eligible eligibility join member individual business personal product policy description explain scheduled announced".split())
@@ -161,10 +161,11 @@ def decide(store, index, request, view, mode, event_date=None, limit=40):
                                   Answer(store.quote(doc.occurrence, doc.block.span), [citation(store, doc)], True), [doc]))
         return finish(refusal("The routing identifier is missing or conflicting."))
     if request.intent == "procedure":
+        from urllib.parse import urlsplit
         for doc, _ in usable:
             body = store.quote(doc.occurrence, doc.block.span)
-            actions = set(request.terms) & {"open", "join", "update", "change", "add", "apply", "transfer"}
-            if actions and actions & set(tokens(body, True)) and doc.validity.status(target) == "applicable" and len(body.split()) >= 8:
+            brand = (urlsplit(doc.occurrence.url).hostname or "").split(".")
+            if procedure_supported(request, body, brand) and doc.validity.status(target) == "applicable" and len(body.split()) >= 8:
                 return finish(Decision("supported", "Published procedural excerpt.",
                                       Answer(body, [citation(store, doc)], True), [doc]))
         return finish(refusal("The retrieved evidence does not establish that procedure."))
