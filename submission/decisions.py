@@ -182,6 +182,28 @@ def decide(store, index, request, view, mode, event_date=None, limit=40):
             if procedure_supported(request, body, brand) and doc.validity.status(target) == "applicable" and len(body.split()) >= 8:
                 return finish(Decision("supported", "Published procedural excerpt.",
                                       Answer(body, [citation(store, doc)], True), [doc]))
+        # Flexible fallback: a how-to answer need not restate every object token,
+        # and the passage may rank below the lexical top-k, so scan all applicable
+        # how-to passages and take the one that best covers the request.
+        try:
+            from .readers import procedure_coverage
+        except ImportError:
+            from readers import procedure_coverage
+        best_doc, best_cov = None, 0.0
+        for doc in index.docs:
+            if doc.block.kind not in ("passage", "list_item") or doc.validity.status(target) != "applicable":
+                continue
+            body = store.quote(doc.occurrence, doc.block.span)
+            if len(body.split()) < 8:
+                continue
+            brand = (urlsplit(doc.occurrence.url).hostname or "").split(".")
+            cov = procedure_coverage(request, body, brand)
+            if cov > best_cov:
+                best_cov, best_doc = cov, doc
+        if best_doc is not None and best_cov >= 0.6:
+            body = store.quote(best_doc.occurrence, best_doc.block.span)
+            return finish(Decision("supported", "Published how-to passage covering the request.",
+                                  Answer(body, [citation(store, best_doc)], True), [best_doc]))
         return finish(refusal("The retrieved evidence does not establish that procedure."))
     if request.metric:
         try:

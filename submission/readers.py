@@ -15,8 +15,12 @@ except ImportError:
     from query import tokens
 
 
-def procedure_evidence(request, body, brand=()):
-    """A lexical procedure guard, not a semantic entailment guarantee."""
+def procedure_evidence(request, body, brand=(), coverage=1.0):
+    """A lexical procedure guard, not a semantic entailment guarantee.
+
+    `coverage` is the fraction of question objects the passage must contain;
+    1.0 (default) requires all of them, lower values accept the best passage
+    that covers most of the request (used only as a flexible fallback)."""
     if body.lstrip().startswith(">") or re.search(
             r"\b(?:not|never|cannot|can't|don't|doesn't|unable|prohibited|unavailable)\b", body, re.I):
         return False
@@ -30,7 +34,29 @@ def procedure_evidence(request, body, brand=()):
     wanted, actual = normalized(request.question), normalized(body)
     actions = wanted & {"open", "join", "update", "add", "apply", "transfer"}
     objects = wanted - actions - set(brand) - {"how", "where", "please", "would", "like", "should"}
-    return bool(actions & actual) and objects <= actual
+    if not (actions & actual):
+        return False
+    return True if not objects else len(objects & actual) >= coverage * len(objects)
+
+
+def procedure_coverage(request, body, brand=()):
+    """Fraction of the request's objects present in a how-to passage (0 when the
+    action is absent or the passage is negated)."""
+    if body.lstrip().startswith(">") or re.search(
+            r"\b(?:not|never|cannot|can't|don't|doesn't|unable|prohibited|unavailable)\b", body, re.I):
+        return 0.0
+    def normalized(text):
+        text = re.sub(r"\bcontact (?:information|details)\b", "contactrecord", text.lower())
+        aliases = {"updating": "update", "updates": "update", "change": "update",
+                   "changing": "update", "changed": "update", "adding": "add",
+                   "joining": "join", "opening": "open", "applying": "apply"}
+        return {aliases.get(w, w) for w in tokens(text, True)}
+    wanted, actual = normalized(request.question), normalized(body)
+    actions = wanted & {"open", "join", "update", "add", "apply", "transfer"}
+    objects = wanted - actions - set(brand) - {"how", "where", "please", "would", "like", "should"}
+    if not (actions & actual):
+        return 0.0
+    return 1.0 if not objects else len(objects & actual) / len(objects)
 
 
 def _brand(doc):
