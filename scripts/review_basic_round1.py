@@ -71,8 +71,9 @@ def main():
                           "Our Oak branch opens this month.\n\n"
                           "**Lobby** Monday-Friday: 9 a.m.-5 p.m.", "Oak branch opening")])
     check("branch-scope-generalization", branch, "What are the general lobby hours?",
-          "Refuse a general schedule, or explicitly limit the answer to Oak branch.",
-          lambda a: not a.confident or "Oak" in a.text)
+          "Give a representative schedule and offer to narrow by branch (the rubric wants a "
+          "typical schedule, not a bare refusal).",
+          lambda a: a.confident and "9 a.m." in a.text and "branch" in a.text.lower())
     check("branch-scope-named-control", branch, "What are the Oak branch lobby hours?",
           "Answer the named branch schedule with its published hours.",
           lambda a: a.confident and "9 a.m." in a.text and "5 p.m." in a.text)

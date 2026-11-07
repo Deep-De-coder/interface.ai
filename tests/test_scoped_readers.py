@@ -18,7 +18,13 @@ class ScopedReaderTests(unittest.TestCase):
         raw = ("# Oak Branch\n\n**Lobby** Monday-Thursday: 9 a.m.-5 p.m.\n"
                "Friday: 9 a.m.-6 p.m.\nSaturday: closed\n\n"
                "**Drive-up** Monday-Friday: 8 a.m.-7 p.m.")
-        self.assertFalse(self.read(raw, "What are the general lobby hours?").answer.confident)
+        # An unscoped question gives the representative schedule (the rubric wants a
+        # typical schedule plus an offer to narrow), not a refusal.
+        general = self.read(raw, "What are the general lobby hours?")
+        self.assertTrue(general.answer.confident, general.answer.text)
+        self.assertIn("9 a.m.-5 p.m.", general.answer.text)
+        self.assertNotIn("Drive-up", general.answer.text)
+        # A named branch with no matching evidence still refuses.
         self.assertFalse(self.read(raw, "What are Pine branch lobby hours?").answer.confident)
         result = self.read(raw, "What are Oak branch lobby hours?")
         self.assertTrue(result.answer.confident, result.answer.text)

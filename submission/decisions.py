@@ -236,7 +236,9 @@ def decide(store, index, request, view, mode, event_date=None, limit=40):
             if len({canonical(x[3]) for x in group}) > 1:
                 notes.append(reason)
         def scalar(item):
-            value = canonical(item[3])
+            # Tolerate a trailing percent-footnote marker ("0.20%1"); a range or
+            # any other composite value still fails the full match and stays None.
+            value = re.sub(r"(%)\d+$", r"\1", canonical(item[3]))
             match = re.fullmatch(r"\$?(\d+(?:\.\d+)?)\s*%?", value)
             return Decimal(match[1]) if match else None
         if request.operation == "exists" and request.predicate is not None:
@@ -252,7 +254,12 @@ def decide(store, index, request, view, mode, event_date=None, limit=40):
             return finish(result)
         if request.operation in ("max", "min"):
             values = [scalar(x) for x in resolved]
-            if not values or any(v is None for v in values) or blocked:
+            # An extreme is unsafe only if a tier of the SAME reported scope is
+            # scheduled/expired (the applicable set is then incomplete). Blocked
+            # rows from other products do not prevent the comparison.
+            resolved_scopes = {x[4] for x in resolved}
+            scope_blocked = [b for b in blocked if fact_scope(b[0], request.metric) in resolved_scopes]
+            if not values or any(v is None for v in values) or scope_blocked:
                 return finish(refusal("An extreme requires comparable scalar values and complete applicable tiers.", "uncertain"))
             extreme = (max if request.operation == "max" else min)(values)
             resolved = [x for x in resolved if scalar(x) == extreme]
