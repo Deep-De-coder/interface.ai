@@ -12,6 +12,7 @@ try:
     from .conflicts import enumerate_conflicts
     from .validation import validate
     from .extractive import extract
+    from .readers import direct_answer
 except ImportError:
     from evidence import EvidenceStore
     from models import Answer
@@ -22,6 +23,7 @@ except ImportError:
     from conflicts import enumerate_conflicts
     from validation import validate
     from extractive import extract
+    from readers import direct_answer
 
 
 class KnowledgeSystem:
@@ -63,6 +65,9 @@ class KnowledgeSystem:
                     # One bounded expansion, identical for both experiment arms.
                     result = decide(self.evidence, self.indexes[view.snapshot_id], request, view, self.mode,
                                     temporal.event_date, limit=160)
+                if not result.answer.confident:
+                    result = direct_answer(self.evidence, self.indexes[view.snapshot_id], request, view,
+                                           temporal.event_date) or result
                 if result.status == "insufficient":
                     result = extract(self.evidence, self.indexes[view.snapshot_id], request, view, self.mode) or result
             results.append(result)

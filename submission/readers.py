@@ -172,6 +172,139 @@ def read_scoped(store, index, request, view, target):
     return _result(store, docs, body, "Branch schedules with branch clarification.")
 
 
+_MONTHS = ("January|February|March|April|May|June|July|August|September|October|November|December")
+_DATE_PHRASE = re.compile(r"\b(?:%s)\s+\d{1,2},?\s+\d{4}" % _MONTHS, re.I)
+_US_STATES = ("Alabama Alaska Arizona Arkansas California Colorado Connecticut Delaware Florida Georgia "
+              "Hawaii Idaho Illinois Indiana Iowa Kansas Kentucky Louisiana Maine Maryland Massachusetts "
+              "Michigan Minnesota Mississippi Missouri Montana Nebraska Nevada Ohio Oklahoma Oregon "
+              "Pennsylvania Tennessee Texas Utah Vermont Virginia Washington Wisconsin Wyoming").split()
+
+
+def direct_answer(store, index, request, view, event_date=None):
+    """Last-resort extractive answerer: when scoped readers and retrieval refuse,
+    the exact answer sentence often still exists but ranked out. Match the question's
+    distinctive entity tokens against ALL applicable passages and return the one that
+    also carries the answer-type focus (a closure date, a phone number, a join/apply
+    link). Tightly gated so it only speaks when a focused match is unambiguous."""
+    target = event_date or min(view.requested_on, view.observed_on)
+    q = request.question.lower()
+    stop = {"is", "the", "an", "still", "open", "today", "closed", "close", "closing",
+            "branch", "location", "dupaco", "does", "do", "have", "has", "will", "can",
+            "this", "your", "are", "and", "how", "where", "what", "for", "many", "last", "year",
+            "online", "please", "get", "me", "of", "with", "you", "number", "member", "any"}
+    months = {"january", "february", "march", "april", "may", "june", "july", "august",
+              "september", "october", "november", "december"}
+    ents = [w for w in re.findall(r"[a-z][a-z0-9-]{2,}", q) if w not in stop and w not in months]
+    if not ents:
+        return None
+
+    # Decide the answer-type focus from the question.
+    if re.search(r"\b(still open|open today|closed|closing|will close|reopen|open\b)", q) or "open?" in q:
+        focus = "closure"
+    elif re.search(r"\b(call|phone|contact|reach|number)\b", q):
+        focus = "phone"
+    elif re.search(r"\b(join|apply|enroll|sign up|link|online|website|url)\b", q):
+        focus = "link"
+    elif re.search(r"\b(eligible|eligibility|who can (?:join|become)|service area|what states|serve)\b", q) \
+            or re.search(r"where .*(located|serve|branches)", q):
+        focus = "area"
+    elif re.search(r"\b(recognition|recognized|award|awarded|honou?r|accolade)\b", q):
+        focus = "recognition"
+    elif re.search(r"full[- ]service|where can .*(?:go|bank)|instead|alternative", q):
+        focus = "referral"
+    else:
+        return None
+
+    if focus == "referral":
+        # "Where can X members go for full-service banking?" → the passage naming the
+        # alternative full-service branches for the referenced entity. Anchor on the
+        # distinctive proper noun (e.g. Hy-Vee), not generic words like "full-service".
+        generic_ref = {"where", "branch", "branches", "member", "members", "go", "full", "service",
+                       "full-service", "banking", "bank", "services", "location", "locations", "visit", "can"}
+        proper = [e for e in ents if e not in generic_ref]
+        if not proper:
+            return None
+        for doc in index.docs:
+            if doc.block.kind not in ("passage", "list_item") or doc.validity.status(target) != "applicable":
+                continue
+            body = store.quote(doc.occurrence, doc.block.span)
+            if not (4 <= len(body.split()) <= 200):
+                continue
+            low = body.lower()
+            if not any(p in low for p in proper) or not re.search(r"full.?service", low):
+                continue
+            if re.search(r"\b(branch|street|avenue|road|drive)\b", low):
+                return _result(store, [doc], body, "Published referral to alternative full-service branches.")
+        return None
+
+    if focus == "recognition":
+        # The latest recognition statement (highest ordinal, e.g. "fifth time"),
+        # naming the awarding body, with the fewest stale historical years.
+        rec = re.compile(r"\b(recognized|named|ranked|awarded|honou?red|voted)\b", re.I)
+        old_year = re.compile(r"\b(?:20(?:1\d|2[01]))\b")
+        ordinals = {"first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5,
+                    "sixth": 6, "seventh": 7, "eighth": 8, "ninth": 9, "tenth": 10}
+        ord_re = re.compile(r"\b(%s)\b" % "|".join(ordinals), re.I)
+        best, best_key = None, None
+        for doc in index.docs:
+            if doc.block.kind not in ("passage", "list_item") or doc.validity.status(target) != "applicable":
+                continue
+            body = store.quote(doc.occurrence, doc.block.span)
+            if not (4 <= len(body.split()) <= 200) or not rec.search(body):
+                continue
+            low = body.lower()
+            if not any(e in low for e in ents):
+                continue
+            top_ord = max((ordinals[m.lower()] for m in ord_re.findall(body)), default=0)
+            key = (-top_ord, len(old_year.findall(body)))
+            if best is None or key < best_key:
+                best, best_key = doc, key
+        if best is not None:
+            return _result(store, [best], store.quote(best.occurrence, best.block.span),
+                           "Latest published recognition statement.")
+        return None
+
+    if focus == "area":
+        # Pick the passage naming the MOST service states alongside a genuine
+        # service-area phrase (a staff bio that happens to mention two states loses).
+        best, best_n = None, 1
+        for doc in index.docs:
+            if doc.block.kind not in ("passage", "list_item") or doc.validity.status(target) != "applicable":
+                continue
+            body = store.quote(doc.occurrence, doc.block.span)
+            if not (4 <= len(body.split()) <= 200):
+                continue
+            if not re.search(r"\b(find us|locat\w*|serve|service area|eligible to)\b", body, re.I):
+                continue
+            n = sum(1 for s in _US_STATES if re.search(r"\b%s\b" % s, body))
+            if n > best_n:
+                best, best_n = doc, n
+        if best is not None:
+            return _result(store, [best], store.quote(best.occurrence, best.block.span),
+                           "Published service-area statement.")
+        return None
+
+    def ok(body):
+        low = body.lower()
+        if not any(e in low for e in ents):
+            return False
+        if focus == "closure":
+            return bool(re.search(r"\b(close|closing|closed|will close|relocat)\b", low) and _DATE_PHRASE.search(body))
+        if focus == "phone":
+            return bool(re.search(r"\b\d{3}-\d{3}-\d{4}\b", body))
+        if focus == "link":
+            return bool(re.search(r"https?://[^\s)]*(?:%s)" % "|".join(ents), body, re.I))
+        return False
+
+    for doc in index.docs:
+        if doc.block.kind not in ("passage", "list_item") or doc.validity.status(target) != "applicable":
+            continue
+        body = store.quote(doc.occurrence, doc.block.span)
+        if 4 <= len(body.split()) <= 200 and ok(body):
+            return _result(store, [doc], body, "Published statement answering the request (%s)." % focus)
+    return None
+
+
 def read_link_or_count(store, index, request, target):
     try:
         from .decisions import refusal

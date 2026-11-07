@@ -309,8 +309,32 @@ def decide(store, index, request, view, mode, event_date=None, limit=40):
             texts.insert(0, "A published matching tier exists:")
         if request.intent != "list" and not {"business", "personal"} & set(request.terms) and any("business" in tokens(d.identity, True) for d in docs):
             texts.insert(0, "Only the labeled variants below are established by this evidence; specify the audience if you mean another variant.")
+        # Broaden citations: any other applicable page publishing the same value for
+        # the same requested qualifiers also supports this fact, so cite it too. The
+        # canonical product page often ranks below the lexical cutoff, so scan all
+        # docs, not just the retrieved candidates. Answer text is unchanged; this only
+        # makes the reference set independent of which page ranked first.
+        cited = list(docs)
+        seen_urls = {d.occurrence.url for d in cited}
+        chosen_vals = {canonical(d.block.cells[c]) for d, c in rows}
+        for d2 in index.docs:
+            if not d2.headers or d2.occurrence.url in seen_urls:
+                continue
+            c2 = metric_column(request.metric, d2.headers)
+            if c2 is None or c2 >= len(d2.block.cells):
+                continue
+            if not entity_matches(request, d2, anchors) or not row_matches(request, d2):
+                continue
+            if d2.validity.status(target) != "applicable" or any(
+                    w != "escaped_newlines_interpreted" for w in d2.block.warnings):
+                continue
+            if canonical(d2.block.cells[c2]) in chosen_vals:
+                cited.append(d2)
+                seen_urls.add(d2.occurrence.url)
+                if len(cited) >= len(docs) + 6:
+                    break
         result = Decision("supported", "Validated table cells with matching qualifiers.",
-                          Answer("\n".join(texts), [citation(store, d) for d in docs], True), docs,
+                          Answer("\n".join(texts), [citation(store, d) for d in cited], True), docs,
                           scope=(tuple(sorted(anchors)), request.metric, tuple(sorted((x[4] for x in resolved), key=repr))))
         result.answer.conflict_note = resolution_note
         return finish(result)
