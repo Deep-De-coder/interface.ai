@@ -129,3 +129,29 @@ Next: repair missing personal card rows and entity audience ambiguity; inspect
 branch-specific hours being used for general hours. Procedural lexical matching
 is conservative and may reject valid paraphrases; do not claim semantic proof.
 Remaining scope/list/prose/conflict gaps above still apply.
+
+## Latest checkpoint: basic adversarial review, round 01
+
+User requested parallel critic/solver agents and a new plan with persistent
+failure records. Agents `basic_critic` and `basic_solver` audited basic mode,
+exchanged critiques, and reproduced defects using invented evidence. No runtime
+fixes were made during this planning round. Read `BASIC_REVIEW_PLAN.md` next:
+it supersedes the immediate next-work ordering above and defines stable B01–B10
+failure IDs, acceptance gates, failed-attempt logging and private evidence rules.
+
+Baseline commit is d16c338 on main. Original evaluation files were copied to
+ignored `results/review-rounds/round-01/` with a checksum manifest. Preserve them.
+`scripts/review_basic_round1.py` provides reusable basic-only diagnostics;
+inspect per-case passed fields, since diagnostic findings intentionally exit 0.
+Existing 30 tests pass despite these newly demonstrated gaps.
+Completed diagnostics: 14 checks, 4 passed and 10 failed assertions, including
+one explicitly labeled audience-policy concern rather than a proven false value.
+Archived output: `results/review-rounds/round-01/basic_probes.json`. Named-branch
+positive control also refuses; record this coverage issue under B03.
+
+Next implementation: first preserve prose ranges/conditions and resolve every
+rendered table row (B01/B02), then establish shared evidence-backed fact scope
+and consistent answer/conflict resolution (B05). After that address branch and
+audience scope, list completeness, and query operations. No blanket refusal or
+public score increase alone closes an issue. Append new attempts/results to the
+new plan and archive detailed outputs in a fresh round directory.
