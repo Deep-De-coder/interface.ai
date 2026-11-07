@@ -63,14 +63,32 @@ class Index:
                 if block.kind not in ("table_row", "passage", "list_item"):
                     continue
                 body = store.quote(occurrence, block.span)
-                if re.match(r"^\s*!?\[.*\]\([^\n]*\)\s*$", body) or not tokens(body):
+                if re.match(r"^\s*!\[.*\]\([^\n]*\)\s*$", body) or not tokens(body):
                     continue
+                if re.match(r"^\s*\[.*\]\([^\n]*\)\s*$", body):
+                    block = replace(block, kind="link")
                 headers = cells(store.quote(occurrence, block.header)) if block.header else ()
                 fact = re.fullmatch(r"(.{1,100}?)\s+(APY|APR|fee|rate)\s*:?\s*(\$?\d[\d,.]*(?:%)?)(.*)", body, re.I)
                 if not headers and fact and ("%" in fact[3] or "$" in fact[3]):
                     headers = ("Product", fact[2].upper())
-                    block = replace(block, kind="table_row", cells=(fact[1], fact[3]), header=block.span)
-                spans = table_context(store, occurrence, block) if block.header else ()
+                    # Keep the complete numeric expression: suffixes may carry
+                    # a range endpoint, tier boundary or essential condition.
+                    # Treat it as an opaque value, not a scalar we can compute.
+                    block = replace(block, kind="table_row", cells=(fact[1], (fact[3] + fact[4]).strip()), header=block.span)
+                    suffix_metric = re.search(r"\b(APR|APY)\b", fact[4], re.I)
+                    if fact[2].lower() == "rate" and suffix_metric and block.headings:
+                        product = block.headings[-1]
+                        headers = ("Card Type" if re.search(r"card|visa", product, re.I) else "Product", suffix_metric[1].upper())
+                        block = replace(block, cells=(product, body))
+                elif not headers and len(body) < 700 and block.headings:
+                    # Product-local prose may put the metric after the range.
+                    # Keep the entire statement, including purpose/conditions.
+                    metric_fact = re.search(r"\d+(?:\.\d+)?%[^\n]{0,30}\b(APR|APY)\b", body, re.I)
+                    product = block.headings[-1]
+                    if metric_fact and re.search(r"\b(card|visa|savings|certificate|loan)\b", product, re.I) and not product.endswith("?"):
+                        headers = ("Card Type" if re.search(r"card|visa", product, re.I) else "Product", metric_fact[1].upper())
+                        block = replace(block, kind="table_row", cells=(product, body), header=block.span)
+                spans = table_context(store, occurrence, block) if block.header and block.header != block.span else ()
                 context = "\n".join(store.quote(occurrence, s) for s in spans)
                 label = " ".join(store.quote(occurrence, s) for s in spans if s.end <= block.header.start) if block.header else ""
                 identity = " ".join((occurrence.title, *block.headings, label))
@@ -91,6 +109,19 @@ class Index:
                 for term, count in counts.items():
                     self.postings[term].append((i, count))
         self.average = sum(self.lengths) / max(1, len(self.lengths))
+        # Evidence-derived reader indexes, built once per snapshot (not answers).
+        self.reader_groups = []
+        for positions in self.by_section.values():
+            docs = [self.docs[i] for i in positions if self.docs[i].block.kind in ("passage", "list_item")]
+            if docs:
+                self.reader_groups.append((docs, "\n".join(store.quote(d.occurrence, d.block.span) for d in docs)))
+        self.labeled_links, self.count_statements = [], []
+        for doc in self.docs:
+            raw = store.quote(doc.occurrence, doc.block.span)
+            for match in re.finditer(r"\[([^\]]+)\]\((https?://[^\s)]+)\)", raw):
+                self.labeled_links.append((doc, frozenset(tokens(match[1], True)), match[0]))
+            if re.search(r"\b\d+\s+(?:[\w-]+\s+){0,2}(?:branches|employees|members)\b", raw, re.I):
+                self.count_statements.append((doc, frozenset(tokens(raw, True)), raw))
 
     def search(self, request, mode, target, limit=40):
         scores = defaultdict(float)

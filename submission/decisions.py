@@ -61,6 +61,10 @@ def range_contains(text, value):
 
 def row_matches(request, doc):
     cells = doc.block.cells
+    if request.metric in ("apr", "rate") and re.search(r"card|visa", doc.identity, re.I):
+        requested_promo = re.search(r"intro|transfer|promotion|cash advance", request.question, re.I)
+        if not requested_promo and re.search(r"intro|transferred balances|balance transfer|cash advance", " ".join(cells), re.I):
+            return False
     if request.metric == "fee":
         service = set(request.terms) & {"wire", "transfer", "overdraft", "withdrawal", "maintenance"}
         if not service <= set(tokens(" ".join(cells), True)):
@@ -101,7 +105,8 @@ def metric_column(metric, headers):
 def entity_terms(request):
     q = re.sub(DATE, "", request.question, flags=re.I)
     q = re.sub(r"\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b", "", q, flags=re.I)
-    return {t for t in tokens(q, True) if t not in GENERIC and not t.isdigit() and t not in {"right", "standard", "purchase", "provide", "repeat", "earn", "between"}}
+    q = re.sub(r"\d+(?:\.\d+)?\s*%", "", q)
+    return {t for t in tokens(q, True) if t not in GENERIC and not t.isdigit() and t not in {"right", "standard", "purchase", "provide", "repeat", "earn", "between", "highest", "maximum", "lowest", "any", "tiers"}}
 
 
 def entity_matches(request, doc, anchors):
@@ -150,6 +155,13 @@ def decide(store, index, request, view, mode, event_date=None, limit=40):
         if result.answer.confident and view.note:
             result.answer.text += " " + view.note
         return result
+    try:
+        from .readers import read_scoped
+    except ImportError:
+        from readers import read_scoped
+    scoped = read_scoped(store, index, request, view, target)
+    if scoped is not None:
+        return finish(scoped)
     if not usable:
         return finish(refusal("I could not find sufficient evidence for that subject in the selected snapshot."))
     if {"routing", "number"} <= set(request.terms):
@@ -163,6 +175,8 @@ def decide(store, index, request, view, mode, event_date=None, limit=40):
     if request.intent == "procedure":
         from urllib.parse import urlsplit
         for doc, _ in usable:
+            if doc.block.kind not in ("passage", "list_item"):
+                continue
             body = store.quote(doc.occurrence, doc.block.span)
             brand = (urlsplit(doc.occurrence.url).hostname or "").split(".")
             if procedure_supported(request, body, brand) and doc.validity.status(target) == "applicable" and len(body.split()) >= 8:
@@ -170,6 +184,12 @@ def decide(store, index, request, view, mode, event_date=None, limit=40):
                                       Answer(body, [citation(store, doc)], True), [doc]))
         return finish(refusal("The retrieved evidence does not establish that procedure."))
     if request.metric:
+        try:
+            from .facts import fact_scope, canonical
+            from .conflicts import resolve_entries
+        except ImportError:
+            from facts import fact_scope, canonical
+            from conflicts import resolve_entries
         accepted, blocked = [], []
         for doc, score in usable:
             if not doc.headers or any(w != "escaped_newlines_interpreted" for w in doc.block.warnings):
@@ -184,9 +204,7 @@ def decide(store, index, request, view, mode, event_date=None, limit=40):
             if state != "applicable":
                 blocked.append((doc, state))
                 continue
-            scope = tuple((h, c) for h, c in zip(doc.headers, doc.block.cells)
-                          if metric_column("apy", (h,)) is None and metric_column("apr", (h,)) is None
-                          and not re.search(r"rate|fee", h, re.I))
+            scope = fact_scope(doc, request.metric)
             accepted.append((doc, score, col, value, scope))
         if not accepted:
             reason = "No validated table value supports the requested metric and qualifiers."
@@ -196,47 +214,49 @@ def decide(store, index, request, view, mode, event_date=None, limit=40):
         # Present distinct published metrics with their labels. Prefer current
         # explicit schedules to undated examples, without changing eligibility.
         accepted.sort(key=lambda x: (x[0].validity.start or "", x[1]), reverse=True)
-        # Retrieve all rows of a selected table for broad tiers, not just top-k.
+        # Resolve every scope that can reach the output, including later rows.
+        from collections import defaultdict
         chosen = accepted[0]
         chosen_table = (chosen[0].occurrence.url, chosen[0].block.header)
-        comparable = [x for x in accepted if x[4] == chosen[4]]
-        resolution_note = None
-        if len({x[3] for x in comparable}) > 1:
-            try:
-                from .conflicts import resolve_entries
-            except ImportError:
-                from conflicts import resolve_entries
-            winner, reason = resolve_entries([(x[3], x[0]) for x in comparable])
-            if winner is not None:
-                accepted = [x for x in accepted if x[4] != chosen[4] or x[3] == winner]
-                chosen = next(x for x in accepted if x[4] == chosen[4])
-                chosen_table = (chosen[0].occurrence.url, chosen[0].block.header)
-                resolution_note = reason
-                comparable = [x for x in comparable if x[3] == winner]
-        if len({x[3] for x in comparable}) > 1:
-            docs = [x[0] for x in comparable]
-            result = refusal("Comparable sources disagree; no supported winner is established.", "conflicting", [citation(store, d) for d in docs])
-            result.answer.conflict_note = "Same metric and displayed qualifiers have competing values."
-            result.selected = docs
+        all_scopes = request.intent == "list" or request.operation != "value" or any(
+            "card type" in [h.lower() for h in x[0].headers] for x in accepted)
+        requested_scopes = {x[4] for x in accepted if all_scopes or
+                            (x[0].occurrence.url, x[0].block.header) == chosen_table}
+        groups = defaultdict(list)
+        for item in accepted:
+            if item[4] in requested_scopes:
+                groups[item[4]].append(item)
+        resolved, unresolved, notes = [], [], []
+        for group in groups.values():
+            winner, reason = resolve_entries([(x[3], x[0]) for x in group], target=target)
+            if winner is None:
+                unresolved.extend(x[0] for x in group)
+                continue
+            resolved.append(next(x for x in group if canonical(x[3]) == winner))
+            if len({canonical(x[3]) for x in group}) > 1:
+                notes.append(reason)
+        def scalar(item):
+            value = canonical(item[3])
+            match = re.fullmatch(r"\$?(\d+(?:\.\d+)?)\s*%?", value)
+            return Decimal(match[1]) if match else None
+        if request.operation == "exists" and request.predicate is not None:
+            # A positive witness is sufficient; absence is not proof of no tier.
+            resolved = [x for x in resolved if scalar(x) == request.predicate]
+            if not resolved:
+                return finish(refusal("No resolved matching tier establishes the requested value."))
+        elif unresolved:
+            result = refusal("A requested output fact has unresolved competing values.",
+                             "conflicting", [citation(store, d) for d in unresolved])
+            result.selected = unresolved
+            result.answer.conflict_note = "Conflicting entries were not silently omitted."
             return finish(result)
-        rows = []
-        list_rows = None
-        if request.intent == "list":
-            from collections import defaultdict
-            try:
-                from .conflicts import resolve_entries
-            except ImportError:
-                from conflicts import resolve_entries
-            by_scope = defaultdict(list)
-            for item in accepted:
-                by_scope[item[4]].append(item)
-            list_rows = []
-            for group in by_scope.values():
-                winner, reason = resolve_entries([(x[3], x[0]) for x in group])
-                if winner is None:
-                    return finish(refusal("A requested list entry has unresolved competing values.", "conflicting"))
-                item = next(x for x in group if x[3] == winner)
-                list_rows.append((item[0], item[2]))
+        if request.operation in ("max", "min"):
+            values = [scalar(x) for x in resolved]
+            if not values or any(v is None for v in values) or blocked:
+                return finish(refusal("An extreme requires comparable scalar values and complete applicable tiers.", "uncertain"))
+            extreme = (max if request.operation == "max" else min)(values)
+            resolved = [x for x in resolved if scalar(x) == extreme]
+        # Malformed or uncertain rows in the selected schedule cannot vanish.
         for doc in index.docs:
             if (doc.occurrence.url, doc.block.header) != chosen_table:
                 continue
@@ -244,11 +264,8 @@ def decide(store, index, request, view, mode, event_date=None, limit=40):
                 continue
             if any(w != "escaped_newlines_interpreted" for w in doc.block.warnings) or doc.validity.status(target) != "applicable":
                 return finish(refusal("The matching table contains uncertain rows; a complete answer is not supported.", "uncertain"))
-            col = metric_column(request.metric, doc.headers)
-            if col is not None:
-                rows.append((doc, col))
-        if list_rows is not None:
-            rows = list_rows
+        rows = [(x[0], x[2]) for x in resolved]
+        resolution_note = " ".join(dict.fromkeys(notes)) or None
         if len(rows) > 20:
             return finish(refusal("Please narrow the product or tier so the complete result can be shown.", "ambiguous"))
         texts, docs = [], []
@@ -257,9 +274,15 @@ def decide(store, index, request, view, mode, event_date=None, limit=40):
                       if i != col and (request.metric == "rate" or not re.search(r"(?:rate|apy|apr|yield)", h, re.I))]
             texts.append(f"{'; '.join(labels)} — {doc.headers[col]}: {doc.block.cells[col]}")
             docs.append(doc)
+        if request.operation in ("max", "min"):
+            texts.insert(0, "Among the published matching tiers:")
+        if request.operation == "exists":
+            texts.insert(0, "A published matching tier exists:")
+        if request.intent != "list" and not {"business", "personal"} & set(request.terms) and any("business" in tokens(d.identity, True) for d in docs):
+            texts.insert(0, "Only the labeled variants below are established by this evidence; specify the audience if you mean another variant.")
         result = Decision("supported", "Validated table cells with matching qualifiers.",
                           Answer("\n".join(texts), [citation(store, d) for d in docs], True), docs,
-                          scope=(tuple(sorted(anchors)), request.metric, tuple(x[4] for x in accepted if (x[0].occurrence.url, x[0].block.header) == chosen_table)))
+                          scope=(tuple(sorted(anchors)), request.metric, tuple(sorted((x[4] for x in resolved), key=repr))))
         result.answer.conflict_note = resolution_note
         return finish(result)
     # A bounded list is the entire selected explicit list section. We do not

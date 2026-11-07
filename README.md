@@ -7,6 +7,10 @@ enumeration, exact-quote/numeric validation, and source-only packaging are now
 implemented. Query coverage remains limited; see the current evaluation before
 treating this as submission-ready.
 
+Latest implementation comparison: [round 02 results](ROUND_02_RESULTS.md).
+The reproduced review defects are fixed, but public QA is lower after stricter
+location-scope checks. See the item-by-item failure inventory before submission.
+
 Python 3.11+; standard library only. No API keys, downloads, or database services.
 The participant kit must be supplied separately and is excluded from Git.
 

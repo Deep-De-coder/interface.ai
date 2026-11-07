@@ -5,15 +5,22 @@ try:
     from .query import tokens, procedure_supported
     from .models import Answer
     from .decisions import Decision, citation
+    from .readers import procedure_evidence
 except ImportError:
     from query import tokens, procedure_supported
     from models import Answer
     from decisions import Decision, citation
+    from readers import procedure_evidence
 
 NOISE = set("tell repeat received recognition general still today currently should use see link url provide know would like any standard become become going new options flexibility can all same keep highest many employees last year how when where who eligible information number address hours branches branch online".split())
 
 
 def extract(store, index, request, view, mode):
+    if request.intent in ("link", "count"):
+        return None
+    if re.search(r"\beligib(?:le|ility)\b", request.question) or (
+            "hours" in request.terms and re.search(r"lobby|drive[ -]?up|branch", request.question)):
+        return None  # The scoped reader owns these; an excerpt cannot bypass it.
     if request.metric:
         return None  # Unrelated numbers cannot substitute for an absent rate.
     ranked = index.search(request, mode, view.observed_on, limit=160)
@@ -25,7 +32,7 @@ def extract(store, index, request, view, mode):
         if len(raw.split()) < 5 or len(raw) > 2500 or raw.lstrip().startswith("!["):
             continue
         brand = set(urlsplit(doc.occurrence.url).hostname.split("."))
-        if request.intent == "procedure" and not procedure_supported(request, raw, brand):
+        if request.intent == "procedure" and not procedure_evidence(request, raw, brand):
             continue
         focus = set(request.terms) - NOISE - brand
         body = set(tokens(raw, True))

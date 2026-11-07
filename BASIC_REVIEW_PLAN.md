@@ -140,3 +140,36 @@ This is a revised plan, not a claim that the problems are fixed or the assignmen
 is ready. Start the next implementation round with the direct B01/B02 corrections,
 then the minimal shared scope and B05. Reassess complexity after each gate; preserve the simple basic
 retriever until evidence shows retrieval itself is the remaining bottleneck.
+
+## Round 02 implementation log — 2026-11-07
+
+The earlier text is the frozen plan. Current results are in `ROUND_02_RESULTS.md`.
+This round implemented the bounded reader/resolver changes; it did not implement
+a general semantic relation model or solve all public questions.
+
+| ID | Change / evidence | Disposition |
+|---|---|---|
+| B01 | Every rendered scope resolves across comparable evidence; broad/narrow row and order-mutation tests added. | Reproduced defect fixed; general entity matching remains conservative. |
+| B02 | Full numeric prose tail preserved; bounded metric-after-range forms retain product heading and raw wording. Range/condition and ongoing/intro tests pass. | Reproduced truncation fixed; complex conditions remain opaque, not executable rules. |
+| B03 | Dedicated reader requires named location or explicit general scope; named and missing-branch controls pass. | Synthetic scope defect fixed; general public hours now refuse, reducing scored coverage. |
+| B04 | Audience part of fact scope; labeled variants retained; explicit-personal control passes. Product-local APR prose supported. | Partial: ambiguity policy improved, complete cross-page identity remains limited. |
+| B05 | Shared fact scope separates products within a page and connects evidenced matching headings/named rows. | Reproduced false conflict fixed; no general alias inference. |
+| B06 | Whole bounded eligibility section, including operator prose, replaces a single bullet. | Synthetic list fixed; public membership group disagreement remains open. |
+| B07 | Max/min over scalar resolved facts; positive existence witness; explicit count and labeled-link readers. | Partial: uncertain/conditional maxima and competing counts refuse; no complete global inventory. |
+| B08 | No new relation-specific recognition reader. | Open: topical evidence can still omit requested latest recognition detail. |
+| B09 | Negation guard and limited action aliases preserve action/object distinction. | Partial: positive/negative controls pass; several public procedures still refuse. |
+| B10 | Explicit resolver target and canonical values shared with conflict enumeration. | Target/footnote controls pass; temporal/entity alias coverage remains limited. |
+
+Failed attempts are retained instead of being hidden by the final revision:
+
+| Round | ID | Attempt and observed failure | Correction and check |
+|---|---|---|---|
+| 02 | B09 | Collapsing contact information/details to 'contact' allowed password updates again. | Preserve a distinct contact-record object; old negative regression and new synonym positive test pass. |
+| 02 | B02 | Attaching neighboring context to synthetic prose pulled an introductory offer into the ongoing APR. | Preserve the prose block and heading without neighboring table context; range/intro test passes. |
+| 02 | B02 | Leading 'rate' keyword obscured the explicit trailing APR metric. | Prefer that trailing metric for the bounded numeric form; product/range test passes. |
+| 02 | B04 | Filtering card purposes against all context suppressed business rows because of a shared transfer footnote. | Check the row's own cells; dedicated business-row regression passes. |
+| 02 | B07 | Strict link label matching demanded the word 'locator' and lost a valid branch/ATM link. | Treat locator as an operation word; retain subject tokens and source quote. |
+
+Archive: `results/review-rounds/round-02/`. It contains attempt records, diagnostic
+output and each measured public stage. Public report comparisons must use code
+hashes, not assume every run in the round used the same implementation.

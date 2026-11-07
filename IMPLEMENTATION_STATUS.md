@@ -1,49 +1,35 @@
 # Current implementation status
 
-Updated 2026-11-06. Earlier draft/comparison documents are retained as historical
-records; they are not claims about this revision's score.
+Updated 2026-11-07. Current measured results and exact remaining failures are in
+[ROUND_02_RESULTS.md](ROUND_02_RESULTS.md). Earlier comparison documents describe
+historical revisions, not current performance.
 
-Implemented components: contract entry point, synthetic/local evaluation,
-immutable ingestion, evidence parser, snapshot/date interpretation, both retrieval
-variants, structured tier/model-year matching, bounded extractive/procedural
-fallback, table conflict enumeration, shared date resolution, exact-source and
-numeric validation, repeatable evaluation, source-only packaging and CI config.
+The standard-library implementation supports immutable snapshot ingestion,
+date selection, basic/research retrieval, table and bounded prose facts,
+shared product/audience/purpose scope, per-output-fact conflict resolution,
+exact citations, refusal, bounded lists/rules, location-scoped schedules,
+scalar extrema/positive existence, and explicit count/link readers.
 
-Limitations remain material: complex prose and procedural questions, cross-page
-lists, general branch schedules, ambiguous entity equivalence, and nonnumeric
-conflict discovery are not comprehensively supported. Unknown comparisons remain
-unresolved. A score improvement alone does not establish assignment readiness.
-No trained-model experiment has been claimed; the two local retrieval variants
-are the evaluated enhancement experiment.
+Public QA: basic **0.5310**, research **0.4977** (40 questions). Prior scores were
+0.5561 and 0.5227. Both now answer 23/40 confidently, not necessarily correctly.
+Three card questions improved; three general-hours questions now refuse an
+unsupported branch-to-general inference. Other question scores are unchanged.
+Basic remains the default; this is not an overall benchmark improvement.
 
-Runtime verification: 30 tests pass on Python 3.11.9 and the installed Python 3.12.
-An isolated source archive imports and answers an unknown question conservatively.
-The archive excludes snapshots, local gold, reports containing source text, API
-keys, and downloaded runtimes. Detailed reports are local under `results/`.
+Basic p95 .687s, maximum 1.603s, ingestion 62.15s. Research p95 .757s, maximum .913s,
+ingestion 62.19s. Both satisfy the local p95 target. Zero detected quote-integrity
+or source-eligibility failures; this is not proof of semantic entailment.
 
-Final paired Python 3.11 public QA scores: basic 0.5561, research 0.5227.
-Basic answers 24/40 questions confidently, research 25/40; these counts do not
-mean all answers are correct. Basic p95 is 0.439 seconds and ingestion 35.26
-seconds; research p95 is 0.507 seconds and ingestion 25.23 seconds. Both runs
-show zero quote-integrity or ineligible-source failures. Basic remains default.
-The previous organizer run had zero errors and repeat consistency 1.0.
-These are public development results, not hidden-test results or semantic
-correctness guarantees. Complex lists, prose and conflict questions remain weak.
+46 tests pass on Python 3.11.9 and installed Python 3.12. Review probes 14/14,
+synthetic dev 30/30 and reused holdout 12/12 in both modes. All are development
+or regression results. The allowlisted source-only package imports in isolation.
+No hidden-test result, full conflict-gold performance or CI result is claimed.
 
-Organizer self-test: QA 0.8 and conflict F1/resolution 1.0 on its single gold
-conflict. The remaining fee question expects an earlier page that disappears
-from the later full snapshot; this implementation refuses rather than silently
-carrying forward the deleted page. This tiny self-test is not broad validation.
+Final code hash: 2145d775ed63a5d0389be1649652bc9ad0c0eb672919a3801972c59561e9708b.
+Private reports: results/review-rounds/round-02/final/. Public code and notes
+exclude supplied source snapshots, detailed evidence reports and credentials.
 
-Final code hash: `3d77b4bf0c03ef94d6b0855fab865793f2208ef11f244d95cf1329112f6ffe02`.
-Package: ignored `dist/submission.zip`, rebuilt and imported in isolation.
-
-Publication: At the user's request, `main` was fast-forwarded and successfully
-pushed through code commit `9c6d9db`. The connector's read-only permission and invalid CLI
-token did not prevent Git transport. Use Git for subsequent pushes. No email was
-sent. See `WORK_PROGRESS.md` for the live continuation record.
-
-Procedural evidence now requires the requested action and object in the cited
-passage and rejects blockquote testimonials. Public QA scores are unchanged;
-three previously zero-scored confident outputs per variant now refuse. This
-lexical guard can also reject valid paraphrases; semantic coverage remains open.
+Not submission-ready: unresolved membership/product scope, count reporting
+periods, closure/recognition relations, general schedules, broad product inventory
+and several procedures. BASIC_REVIEW_PLAN.md tracks fixes and failed attempts;
+WORK_PROGRESS.md is the continuation record. Publication branch is main.

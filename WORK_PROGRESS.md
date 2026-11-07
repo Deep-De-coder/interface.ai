@@ -155,3 +155,39 @@ and consistent answer/conflict resolution (B05). After that address branch and
 audience scope, list completeness, and query operations. No blanket refusal or
 public score increase alone closes an issue. Append new attempts/results to the
 new plan and archive detailed outputs in a fresh round directory.
+
+## Latest completed implementation round 02 — 2026-11-07
+
+Read ROUND_02_RESULTS.md for the measured comparison and every public item below
+full credit. BASIC_REVIEW_PLAN.md retains issue IDs, dispositions and failed
+attempts. This round is implemented and evaluated; the assignment remains below
+submission-ready quality. Both agents hit usage limits; their saved work was
+integrated and finished directly.
+
+Final code hash: 2145d775ed63a5d0389be1649652bc9ad0c0eb672919a3801972c59561e9708b.
+Basic QA .5310 vs baseline .5561; research .4977 vs .5227. Three card questions
+improved; three general-hours questions now refuse branch-to-general inference.
+The other 34 scores are unchanged. Both answer 23/40 confidently. Basic p95 .687s
+(max 1.603s), research p95 .757s (max .913s); ingestion about 62s each. Source integrity
+and eligibility failures zero. Same code/corpus/questions verified in archive.
+
+46 tests pass on Python 3.11.9 and 3.12; 14/14 review probes (was 4/14); synthetic dev
+30/30 and reused holdout 12/12 in both modes. Isolated package import passes.
+Final private reports: results/review-rounds/round-02/final/. Intermediate runs
+remain in intermediate-01, final-01, final-02 (names reflect work stages, not the
+final published result). comparison.json stores per-item score/confidence changes.
+The latest evidence-index performance change preserves all 40 answers exactly.
+
+Implemented shared fact scopes, every-output-row resolution, lossless prose
+ranges/conditions, card APR prose, scoped hours/eligibility, max/min/positive
+witness, explicit count/link readers, and conservative procedure normalization.
+No general semantic relation model was implemented. Tests exposed and fixed
+contact-object collapse, intro-context leakage, business-row footnote suppression,
+and overstrict locator matching; retain these attempts in the plan ledger.
+
+Next: membership-vs-product rule scope and equivalent group normalization;
+branch-count reporting periods; closure and recognition relationships; link
+customer audience; broad savings/certificate identity; remaining online join,
+contact update, wallet compatibility and student-intent coverage. Review B08
+and partial B03/B04/B06/B07/B09, not just numeric score. Do not restore the old
+hours extrapolation to regain points. Use main for authorized incremental pushes.

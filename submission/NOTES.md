@@ -1,4 +1,15 @@
-# Implementation notes — 2026-11-06
+# Implementation notes — 2026-11-07
+
+Round 02 adds shared fact scope, per-output-fact resolution, full prose
+range/condition preservation, product-local APR evidence, scoped schedules and
+eligibility groups, bounded scalar extrema/positive witnesses, and explicit
+link/count readers. Reader indexes contain derived evidence, not cached answers.
+Forty-six tests pass on Python 3.11 and 3.12. The 14 reviewed diagnostic checks
+pass, but the public basic QA score decreased from .5561 to .5310: three card
+questions improved while three general-hours questions now refuse unsupported
+branch-to-general scope extrapolation. Complex procedures, relation questions,
+audience ambiguity and complete inventory coverage remain unresolved. Earlier
+notes below are retained as history; they are not final performance claims.
 
 Update: conflict enumeration now retains comparable table changes across
 snapshots and across explicitly named account/card/certificate rows. Unknown
