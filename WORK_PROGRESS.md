@@ -13,7 +13,10 @@ publication; no submission email has been authorized or sent.
 
 Workspace: `C:/Users/esote/Downloads/interface.ai` (PowerShell).
 Repository: `https://github.com/Deep-De-coder/interface.ai.git`.
-Branch: `codex/knowledge-system`. Published code commit: `bab82b8`.
+Current branch: `main`. User explicitly requested publishing to main on
+2026-11-06; main was fast-forwarded and pushed through code commit `9c6d9db`.
+Use main for subsequent authorized incremental pushes. The prior
+`codex/knowledge-system` branch remains available.
 Git uses `-c safe.directory=C:/Users/esote/Downloads/interface.ai`.
 Git metadata and network writes may need tool escalation. Git push WORKS with
 stored credentials, despite `gh auth status` failing and connector push=false.

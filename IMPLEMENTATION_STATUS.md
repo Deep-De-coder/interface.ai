@@ -38,8 +38,8 @@ carrying forward the deleted page. This tiny self-test is not broad validation.
 Final code hash: `3d77b4bf0c03ef94d6b0855fab865793f2208ef11f244d95cf1329112f6ffe02`.
 Package: ignored `dist/submission.zip`, rebuilt and imported in isolation.
 
-Publication: Git's stored credential successfully pushed commit `bab82b8` to
-`codex/knowledge-system`. The connector's read-only permission and invalid CLI
+Publication: At the user's request, `main` was fast-forwarded and successfully
+pushed through code commit `9c6d9db`. The connector's read-only permission and invalid CLI
 token did not prevent Git transport. Use Git for subsequent pushes. No email was
 sent. See `WORK_PROGRESS.md` for the live continuation record.
 
