@@ -264,9 +264,30 @@ def decide(store, index, request, view, mode, event_date=None, limit=40):
             match = re.fullmatch(r"\$?(\d+(?:\.\d+)?)\s*%?", value)
             return Decimal(match[1]) if match else None
         if request.operation == "exists" and request.predicate is not None:
-            # A positive witness is sufficient; absence is not proof of no tier.
-            resolved = [x for x in resolved if scalar(x) == request.predicate]
-            if not resolved:
+            # A positive witness is sufficient; absence is not proof of no tier. But a
+            # generic "savings" question means the core Share Savings product, not a
+            # specialized account (Health Savings, Money Market) that merely shares the
+            # word "savings"; a value found only there does not answer it affirmatively.
+            _special = {"health", "hsa", "money", "market", "investor", "certificate", "checking", "ira"}
+            def specialized(x):
+                return bool(_special & set(tokens(x[0].identity, True)))
+            generic = "savings" in request.terms and not (_special & set(request.terms))
+            witnesses = [x for x in resolved if scalar(x) == request.predicate
+                         and not (generic and specialized(x))]
+            if witnesses:
+                resolved = witnesses
+            elif generic:
+                core = [x for x in resolved if {"share", "savings"} <= set(tokens(x[0].identity, True))
+                        and not specialized(x) and scalar(x) is not None]
+                if not core:
+                    return finish(refusal("No resolved matching tier establishes the requested value."))
+                top = max(scalar(x) for x in core)
+                docs_c = [x[0] for x in core]
+                text = ("No core savings tier pays that rate; the Share Savings tiers range up to "
+                        "%s%% APY." % top)
+                return finish(Decision("supported", "Closed-world negative over the core savings tiers.",
+                                       Answer(text, [citation(store, d) for d in docs_c], True), docs_c))
+            else:
                 return finish(refusal("No resolved matching tier establishes the requested value."))
         elif unresolved:
             result = refusal("A requested output fact has unresolved competing values.",

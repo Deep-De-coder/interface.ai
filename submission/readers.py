@@ -378,4 +378,31 @@ def read_link_or_count(store, index, request, target):
     if request.intent == "count" and len({text for _, text in candidates}) > 1:
         return refusal("Multiple count statements need an explicit reporting period or scope.", "ambiguous")
     docs, text = candidates[0]
+    # If the only strict link points to a business/info destination for an
+    # audience-unspecified question, prefer a personal link that covers the subject.
+    if request.intent == "link" and "business" not in request.terms:
+        m = re.search(r"\]\((https?://[^)\s]+)\)", text)
+        turl = (m.group(1) if m else "").lower()
+        if "/business/" in turl or "info." in (urlsplit(turl).hostname or ""):
+            generic_link = {"rate", "rates", "apy", "apr", "today", "compare", "see", "details", "view", "learn"}
+            best = None
+            for d, supt, exc in index.labeled_links:
+                if d.validity.status(target) != "applicable":
+                    continue
+                subject = (set(request.terms) - noise - _brand(d)) - generic_link
+                if not subject:
+                    continue
+                sh = sum(1 for s in subject if s in supt or s + "s" in supt
+                         or (s.endswith("s") and s[:-1] in supt))
+                if not sh:
+                    continue
+                mm = re.search(r"\]\((https?://[^)\s]+)\)", exc)
+                tu = (mm.group(1) if mm else "").lower()
+                if "/personal/" not in tu:
+                    continue
+                key = (-sh, -sum(1 for s in subject if s in tu))
+                if best is None or key < best[0]:
+                    best = (key, [d], exc)
+            if best is not None:
+                docs, text = best[1], best[2]
     return _result(store, docs, text, "Explicit published count or labeled link.")
