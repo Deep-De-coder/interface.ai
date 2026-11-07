@@ -38,6 +38,7 @@ carrying forward the deleted page. This tiny self-test is not broad validation.
 Final code hash: `5859504403d39d8606a972f319f42ef662e0fd8feb2c79d1c6c98bb3ae4994a7`.
 Package: ignored `dist/submission.zip`, rebuilt and imported in isolation.
 
-Publication blocker: the connected GitHub account has pull permission but not
-push permission on Deep-De-coder/interface.ai; GitHub CLI reports an invalid
-token. Restore a write-authorized connection before pushing. No email was sent.
+Publication: Git's stored credential successfully pushed commit `bab82b8` to
+`codex/knowledge-system`. The connector's read-only permission and invalid CLI
+token did not prevent Git transport. Use Git for subsequent pushes. No email was
+sent. See `WORK_PROGRESS.md` for the live continuation record.

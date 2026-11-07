@@ -1,0 +1,108 @@
+# Live continuation record
+
+Updated 2026-11-06. Read this file first after context compaction. User explicitly
+requests continuing remaining work and documenting exactly where work stopped.
+
+## Objective and constraints
+
+Complete the interface.ai knowledge assignment from five supplied full-site
+snapshots. Preserve first-principles implementation; do not copy another public
+solution or hard-code its answers. Keep basic and research retrieval variants
+and their research drafts. User authorized implementation, evaluation and Git
+publication; no submission email has been authorized or sent.
+
+Workspace: `C:/Users/esote/Downloads/interface.ai` (PowerShell).
+Repository: `https://github.com/Deep-De-coder/interface.ai.git`.
+Branch: `codex/knowledge-system`. Published code commit: `bab82b8`.
+Git uses `-c safe.directory=C:/Users/esote/Downloads/interface.ai`.
+Git metadata and network writes may need tool escalation. Git push WORKS with
+stored credentials, despite `gh auth status` failing and connector push=false.
+
+## Implemented
+
+- Immutable chronological snapshot occurrences, content deduplication, exact
+  original text/spans, conservative table and escaped-newline parsing.
+- Explicit snapshot/date selection; effective/expiry dates; comparisons;
+  historical month handling and protection against treating balances as years.
+- Basic overlap and research BM25/hierarchy ranking. Basic remains default.
+- Numeric table reader with tiers, model-year ranges, named entities, full
+  structured candidate scan (prevents top-k from hiding newer schedules).
+- Explicit APY/APR/rate prose facts, limited extractive/procedure fallback,
+  routing identifiers, and cross-page card list assembly.
+- Table/prose-rate conflict enumeration; known named products can compare across
+  URLs, unknown entity equivalence remains URL-scoped. Shared resolution helper.
+- Final source eligibility, exact quote and numerical provenance validation.
+- Source-only ZIP packaging, isolated import verification, CI configuration.
+
+## Verified checkpoint
+
+29 tests pass on Python 3.11.9 and installed Python 3.12.
+Final paired run before this progress file: basic QA **0.5561**, research
+**0.5227**, on 40 public questions. Basic confidently answers 27/40, research
+28/40; these are coverage counts, not correct-answer counts. Basic p95 .123s,
+ingestion 17.19s; research p95 .234s, ingestion 16.88s. No quote-integrity or
+ineligible-source failures in either run. Code SHA-256:
+`5859504403d39d8606a972f319f42ef662e0fd8feb2c79d1c6c98bb3ae4994a7`.
+
+Organizer self-test: QA .8; conflict F1 and resolution 1.0 on ONE gold conflict.
+Remaining self-test fee expects a page absent from latest full snapshot. Do not
+silently carry that disappeared page forward merely to satisfy scorer.
+
+Reports: `results/comparison/public/research-first/{report,details}.json` (latest
+paired run); `results/submission` is slightly earlier, before final card plural
+normalization. Detailed reports contain private source text and are ignored.
+`dist/submission.zip` and `dist/manifest.json` are ignored, rebuilt from allowlist.
+
+## Immediate next work
+
+1. Inspect latest paired details alongside public questions; classify remaining
+   failures into retrieval, scope interpretation, source conflict, rendering,
+   and genuinely missing evidence. Do not encode gold values in runtime code.
+2. Prioritize incomplete cross-page lists, prose financial facts/conditions,
+   general versus branch-specific schedules, and conflict winner semantics.
+3. Expand independent synthetic mutation tests for each repaired behavior.
+4. Re-evaluate only after meaningful changes; retain honest category/coverage
+   results. No hidden-test score or semantic safety guarantee is established.
+5. Update documentation, rebuild/verify ZIP, audit staged paths, commit and push
+   progress to the same branch. Verify remote/CI if accessible.
+
+Do NOT say all work is complete or submission-ready: public quality is still
+limited, nonnumeric conflict discovery is incomplete, and unknown entity scope
+can cause refusals. The user has asked to continue these remaining gaps.
+
+## Runtime and commands
+
+Python 3.11 embeddable runtime downloaded from official python.org into ignored
+`tmp/python311`. Its isolated path setup needs explicit workspace insertion for
+unittest; standalone scripts already add repository paths.
+
+```powershell
+./tmp/python311/python.exe -c "import sys,unittest; sys.path.insert(0,r'C:\Users\esote\Downloads\interface.ai'); r=unittest.TextTestRunner().run(unittest.defaultTestLoader.discover('tests')); sys.exit(not r.wasSuccessful())"
+./tmp/python311/python.exe scripts/compare_variants.py --suite public --order research-first
+./tmp/python311/python.exe scripts/evaluate.py submission
+./tmp/python311/python.exe scripts/verify_release.py
+```
+
+Dataset: ignored `hackathon-knowledge-kit-participant/`; contract in
+`harness/contract.py`. Five snapshots, 3,294 occurrences, newest 2026-09-28.
+Default now = newest snapshot, not wall clock. API as_of selects preceding pull.
+Python >=3.11; no dependencies or API keys. No model experiments run.
+
+Ignore rules exclude kit ZIP/PDF/snapshots, results, local_eval, tmp, dist,
+databases, caches and secrets. Never commit supplied website text or API keys.
+Research files and earlier plan/results are historical artifacts; preserve them.
+
+## Evaluation caveats and known implementation risks
+
+- Public scorer has 40 questions, singleton paraphrase groups, no full conflicts
+  gold; one empty-token item has a deterministic score ceiling.
+- Synthetic holdout was inspected to fix dollar/year confusion; its post-fix
+  12/12 is a regression result, not untouched holdout evidence.
+- Local corpus gold has eight checked development examples; alternate source
+  URLs may correctly support answers. URL recall is not evidence sufficiency.
+- Scope normalization is conservative and incomplete. Comparing whole displayed
+  qualifier tuples can miss equivalent products/tables with different headers.
+- Prose fallback is lexical/extractive, not an entailment model. Numeric checks
+  do not establish semantic relevance; inspect confident errors carefully.
+- Broad rate/list outputs may omit conditions or relevant alternative products.
+- Temporal metadata ambiguity must not be hidden by ranking preferences.
