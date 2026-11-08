@@ -1,40 +1,68 @@
 # Evidence-grounded snapshot knowledge system
 
-Implementation includes a conservative end-to-end answering
-path with date selection, table values, bounded lists, citations, and refusals.
-Two retrieval modes are available: `basic` (default) and `research`. Conflict
-enumeration, exact-quote/numeric validation, and source-only packaging are now
-implemented. Query coverage remains limited; see the current evaluation before
-treating this as submission-ready.
+A deterministic question-answering system that answers questions about a credit-union
+website **as of now**, using only dated full-site snapshots — with exact citations,
+conflict resolution, and honest refusals. **Python standard library only: no LLM, no
+API, no embeddings, no database, no network.** Same input → same output.
 
-Latest implementation comparison: [round 02 results](ROUND_02_RESULTS.md).
-The reproduced review defects are fixed, but public QA is lower after stricter
-location-scope checks. See the item-by-item failure inventory before submission.
+## Submit / run
 
-Python 3.11+; standard library only. No API keys, downloads, or database services.
-The participant kit must be supplied separately and is excluded from Git.
+The hand-in is the [`submission/`](submission/) folder. It exposes the organizer
+contract (`harness/contract.py`):
 
-```powershell
-python -m unittest discover -s tests -v
-python scripts/evaluate.py baseline
-python scripts/evaluate.py audit
-python scripts/evaluate.py submission
-python scripts/evaluate_synthetic.py
-python scripts/compare_variants.py --suite synthetic-dev
-python scripts/compare_variants.py --suite public
-python scripts/verify_release.py
+```python
+from submission.solution import build
+ks = build()                       # defaults to the 'basic' arm
+for snap in snapshots:             # oldest -> newest
+    ks.ingest(snap)
+ks.answer(question, as_of=None)     # -> Answer(text, sources, confident, conflict_note)
+ks.conflicts()                     # -> list[Conflict]
 ```
 
-Use `--kit PATH` for a participant kit outside the default local directory.
-Organizer reports and detailed paired traces are written under ignored `results/`.
-Use `build("basic")` or `build("research")` from Python. The organizer's zero-argument
-`build()` defaults to basic; set `KNOWLEDGE_MODE=research` to select the other arm.
-For a direct synthetic run, use `--mode research`. Neither arm needs a model/API.
+Score it with the participant kit's harness (kept local, not in this repo):
 
-The two retained drafts are [snapshot-first](STEP_5_6_PLAN.md) and
-[research comparison](STEP_5_6_RESEARCH_DRAFT.md). See
-[STEP_5_6_COMPARISON.md](STEP_5_6_COMPARISON.md) for results and limitations.
+```bash
+python harness/run_eval.py --submission submission --eval eval/public_eval.jsonl
+```
 
-Submit the `submission/` folder to the organizer harness. See
-[submission/NOTES.md](submission/NOTES.md) for implementation boundaries and
-[EVALUATION.md](EVALUATION.md) for measured results and limitations.
+Tests and release checks (no kit required):
+
+```bash
+python -m unittest discover -s tests -v
+python scripts/verify_release.py          # builds a source-only zip, imports it in isolation
+python scripts/package_submission.py      # writes dist/submission.zip (allowlisted source only)
+```
+
+Python 3.11+. No API keys, downloads, or services. `build("research")` selects the
+alternate retriever; `KNOWLEDGE_MODE=research` does the same for the organizer's
+zero-argument `build()`.
+
+## Approach
+
+1. **Immutable evidence** — each snapshot page is stored with URL, title, date, fetch
+   time and SHA-256; identical text is deduplicated. Parsing keeps headings, prose,
+   list items and table cells with exact character offsets; malformed tables keep
+   warnings rather than becoming silent facts.
+2. **Truth-at-a-time** — "now" is the latest snapshot's date; `as_of` selects the
+   snapshot on or before that date. Historical answers don't change when newer
+   snapshots are added.
+3. **Interpret → retrieve → read → resolve → validate** — the question's intent, time
+   and scope drive a lexical (default) or BM25 retriever; bounded readers answer
+   table values, extrema, bounded lists, hours, eligibility, counts, links and
+   procedures; a full-scan fallback surfaces the answer when it ranks below the
+   lexical top-k; conflicts resolve to the value applicable at the target date.
+4. **Honesty gate** — a confident answer must cite real sources, every cited quote
+   must appear verbatim in its source, and every number in the answer must be backed
+   by a cited quote; otherwise the system abstains.
+
+## Layout
+
+| Path | Contents |
+|---|---|
+| `submission/` | the hand-in: `solution.py` (`build()`), readers, evidence store, parsing, validation, `NOTES.md`, `requirements.txt` |
+| `tests/` | unit/regression tests over invented fixtures (no supplied data) |
+| `scripts/` | evaluation, variant comparison, packaging and release verification |
+
+The participant kit, website snapshots, API keys and detailed run artifacts are
+**not** redistributed here (see `.gitignore`); obtain the authorized kit separately
+to reproduce the public evaluation.

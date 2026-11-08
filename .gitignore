@@ -31,3 +31,17 @@ local_eval/
 dist/
 build/
 *.egg-info/
+
+# Local-only working notes / process records (kept on disk, out of the submission repo)
+/BASIC_REVIEW_PLAN.md
+/CASE_STUDIES.md
+/DRAFT_PLAN.md
+/EVALUATION.md
+/IMPLEMENTATION_STATUS.md
+/RESEARCH.md
+/ROUND_02_RESULTS.md
+/STEP_5_6_COMPARISON.md
+/STEP_5_6_PLAN.md
+/STEP_5_6_RESEARCH_DRAFT.md
+/WORK_PROGRESS.md
+/HANDOFF.md
