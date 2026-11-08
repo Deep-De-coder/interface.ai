@@ -43,15 +43,27 @@ def enumerate_conflicts(store, indexes):
                     continue
                 key = fact_scope(doc, metric)
                 groups[key].append((canonical(doc.block.cells[col]), doc))
+    def comparable(v):
+        # Collapse escaping/whitespace so "$25.00* " and "$25.00\\*" are not a conflict.
+        return re.sub(r"\s+", " ", re.sub(r"\\(.)", r"\1", v)).strip().lower()
+
+    def scalar_value(v):
+        # A genuine contradiction is between short scalar figures (rates/fees), not
+        # multi-clause prose ("intro offer ... after that ...") or an open range.
+        c = comparable(v)
+        return c if len(c) <= 24 and re.search(r"\d", c) and not re.search(r"[–—]|\bto\b|intro|after", c) else None
+
     result = []
     for (entity, audience, channel, purpose, metric, qualifiers), entries in sorted(groups.items()):
-        values = sorted({v for v, _ in entries})
+        scalars = [(scalar_value(v), v, d) for v, d in entries if scalar_value(v)]
+        values = sorted({s for s, _, _ in scalars})
         if len(values) < 2:
             continue
-        resolution, reason = resolve_entries(entries)
+        resolution, reason = resolve_entries([(v, d) for _, v, d in scalars])
         unique = {}
-        for value, doc in entries:
-            unique.setdefault((value, doc.occurrence.snapshot_id), doc)
+        for norm, value, doc in scalars:
+            unique.setdefault((norm, doc.occurrence.snapshot_id), doc)
         topic = metric.upper() + ": " + " / ".join(entity[1:]) + "; " + "; ".join(f"{h}={c}" for h, c in qualifiers)
-        result.append(Conflict(topic, values, [citation(store, d) for d in unique.values()], resolution, reason))
+        result.append(Conflict(topic, values, [citation(store, d) for d in unique.values()],
+                               comparable(resolution) if resolution else resolution, reason))
     return result
